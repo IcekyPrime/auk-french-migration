@@ -42,8 +42,8 @@ DATASET_NAME = "facebook/voxpopuli"
 CONFIG = "fr"
 SPLITS = "train"                     # VoxPopuli 的 train split 已含充足数据
 
-# HF 端点：默认直连 huggingface.co（新集群网络正常）；如需镜像，设环境变量 HF_ENDPOINT 覆盖
-HF_ENDPOINT = os.environ.get("HF_ENDPOINT", "https://huggingface.co")
+# HF 端点：默认走 hf-mirror（国内集群更稳）；如需直连，设环境变量 HF_ENDPOINT=https://huggingface.co 覆盖
+HF_ENDPOINT = os.environ.get("HF_ENDPOINT", "https://hf-mirror.com")
 
 # 过滤参数
 MIN_SEC, MAX_SEC = 0.5, 30.0
@@ -76,16 +76,21 @@ def stage_download(max_samples: int = 0):
     """
     os.environ["HF_ENDPOINT"] = HF_ENDPOINT
 
-    from huggingface_hub import HfApi, hf_hub_download
+    from huggingface_hub import hf_hub_download
     import pyarrow.parquet as pq
+    import requests
 
     AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
-    api = HfApi()
-    # 直接列出 repo 内所有 parquet 文件（voxpopuli ~245 个，不会超 limit）
-    files = list(api.list_repo_files(
-        DATASET_NAME, repo_type="dataset"
-    ))
+    # 用 requests 直接请求 tree API，绕开 huggingface_hub 新版 list_repo_files 忽略 endpoint 的 bug
+    r = requests.get(
+        f"{HF_ENDPOINT}/api/datasets/{DATASET_NAME}/tree/main",
+        params={"recursive": "true", "expand": "false"}, timeout=120,
+    )
+    r.raise_for_status()
+    data = r.json()
+    items = data if isinstance(data, list) else data.get("items", [])
+    files = [x.get("path") if isinstance(x, dict) else str(x) for x in items]
     print(f"[download] 总共 {len(files)} 个文件")
     # 打印语言列表供诊断
     lang_dirs = sorted(set(f.split("/")[0] for f in files if "/" in f and f.endswith(".parquet")))
