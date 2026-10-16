@@ -111,18 +111,21 @@ def stage_download(max_samples: int = 0):
     skipped = 0
     struct_printed = False
 
-    import shutil
-    import tempfile
+    import time
 
     for pf in parquet_files:
-        tmp = Path(tempfile.mkdtemp(prefix="voxpopuli_parquet_"))
-        try:
-            local = hf_hub_download(DATASET_NAME, pf, repo_type="dataset", local_dir=str(tmp))
-            table = pq.read_table(local)
-            df = table.to_pandas()
-        finally:
-            # 读完即删 parquet，避免每份 ~3GB、共 ~40GB 堆积在缓存
-            shutil.rmtree(tmp, ignore_errors=True)
+        local = None
+        for attempt in range(1, 6):
+            try:
+                local = hf_hub_download(DATASET_NAME, pf, repo_type="dataset")
+                break
+            except Exception as e:
+                print(f"[download] {pf} 下载中断（第 {attempt}/5 次）: {type(e).__name__}: {e}")
+                if attempt == 5:
+                    raise
+                time.sleep(5 * attempt)
+        table = pq.read_table(local)
+        df = table.to_pandas()
 
         for i in range(len(df)):
             row = df.iloc[i]
