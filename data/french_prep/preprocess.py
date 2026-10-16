@@ -31,7 +31,7 @@ from pathlib import Path
 # ===================== 配置区 =====================
 
 DATA_DIR = Path(__file__).resolve().parent          # data/french_prep/
-AUDIO_DIR = DATA_DIR / "french_data"                # 下载音频存放处
+AUDIO_DIR = Path(os.environ.get("FRENCH_DATA_DIR", str(DATA_DIR / "french_data")))  # 下载音频存放处；可用 FRENCH_DATA_DIR 重定向到无配额盘
 RECORDS_CACHE = DATA_DIR / "asr_results_fr.json"    # records 缓存（复用文件名）
 TRAIN_JSONL = DATA_DIR / "train_fr.jsonl"
 VAL_JSONL = DATA_DIR / "val_fr.jsonl"
@@ -106,10 +106,18 @@ def stage_download(max_samples: int = 0):
     skipped = 0
     struct_printed = False
 
+    import shutil
+    import tempfile
+
     for pf in parquet_files:
-        local = hf_hub_download(DATASET_NAME, pf, repo_type="dataset")
-        table = pq.read_table(local)
-        df = table.to_pandas()
+        tmp = Path(tempfile.mkdtemp(prefix="voxpopuli_parquet_"))
+        try:
+            local = hf_hub_download(DATASET_NAME, pf, repo_type="dataset", local_dir=str(tmp))
+            table = pq.read_table(local)
+            df = table.to_pandas()
+        finally:
+            # 读完即删 parquet，避免每份 ~3GB、共 ~40GB 堆积在缓存
+            shutil.rmtree(tmp, ignore_errors=True)
 
         for i in range(len(df)):
             row = df.iloc[i]

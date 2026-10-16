@@ -20,6 +20,9 @@ cd "$(dirname "$0")/../.."      # 切到 AuK 项目根，保证所有相对路�
 
 # ---------- 可调参数 ----------
 MLS_MAX_SAMPLES=${MLS_MAX_SAMPLES:-0}   # 0=全量；>0 采样上限（MLS 法语 train 约 25 万条，可设大值先试跑）
+# 音频数据目录：默认项目内相对路径；配额不够时重定向到无配额盘，如 FRENCH_DATA_DIR=/root/auk_data/french_data
+FRENCH_DATA_DIR=${FRENCH_DATA_DIR:-data/french_prep/french_data}
+export FRENCH_DATA_DIR
 
 # ---------- 1) VoxPopuli 法语：下载 + jsonl（相对路径）----------
 echo "[1/4] VoxPopuli 法语下载"
@@ -27,7 +30,7 @@ python data/french_prep/preprocess.py --stage download
 
 echo "[2/4] VoxPopuli jsonl（相对路径）"
 python data/french_prep/preprocess.py --stage jsonl \
-    --audio-base data/french_prep/french_data
+    --audio-base "$FRENCH_DATA_DIR"
 
 # ---------- 2) MLS 法语：下载 + jsonl（相对路径）----------
 echo "[3/4] MLS 法语下载 + jsonl"
