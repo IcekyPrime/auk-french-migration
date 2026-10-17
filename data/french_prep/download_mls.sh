@@ -22,18 +22,26 @@ TARBALL=data/french_prep/mls_french.tar.gz
 
 mkdir -p data/french_prep
 
-if [ -d data/french_prep/mls_french ]; then
-    echo "[mls] 已存在 data/french_prep/mls_french，跳过下载"
+# 目标目录：若是 symlink（重定向到个人目录），解析到真实路径；否则用项目内目录
+MLS_DIR=data/french_prep/mls_french
+if [ -L "$MLS_DIR" ]; then
+    MLS_DIR=$(readlink -f "$MLS_DIR")
+fi
+mkdir -p "$MLS_DIR"
+
+# 有真实数据才跳过（不能只看目录是否存在，空 symlink 会误判）
+if [ -f "$MLS_DIR/train/transcripts.txt" ]; then
+    echo "[mls] 已存在 $MLS_DIR/train/transcripts.txt，跳过下载"
     exit 0
 fi
 
 echo "[mls] 下载: ${MLS_URL}"
 wget -c "$MLS_URL" -O "$TARBALL"
 
-echo "[mls] 解压到 data/french_prep/"
-tar -xzf "$TARBALL" -C data/french_prep
+echo "[mls] 解压到 $MLS_DIR（跳过顶层 mls_french 目录）"
+tar -xzf "$TARBALL" --strip-components=1 -C "$MLS_DIR"
 
 echo "[mls] 删除 tarball（已解压）"
 rm -f "$TARBALL"
 
-echo "[mls] done -> data/french_prep/mls_french"
+echo "[mls] done -> $MLS_DIR"
