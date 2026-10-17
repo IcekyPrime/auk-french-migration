@@ -41,9 +41,19 @@ def clean_text(raw: str) -> str:
 
 
 def duration_of(path: Path) -> float:
-    import soundfile as sf
-    info = sf.info(str(path))
-    return info.frames / info.samplerate
+    # opus 走 ffprobe（soundfile/libsndfile 不支持 opus）；flac 优先 soundfile
+    try:
+        import soundfile as sf
+        info = sf.info(str(path))
+        return info.frames / info.samplerate
+    except Exception:
+        import subprocess
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+            capture_output=True, text=True, timeout=30,
+        )
+        return float(out.stdout.strip())
 
 
 def main():
@@ -83,7 +93,7 @@ def main():
             continue
         utt_id, text = parts[0], clean_text(parts[1])
         spk, book = utt_id.split("_")[0], utt_id.split("_")[1]
-        wav = audio_dir / spk / book / f"{utt_id}.flac"
+        wav = audio_dir / spk / book / f"{utt_id}.opus"
         if not wav.exists():
             skipped += 1
             continue

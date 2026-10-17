@@ -14,10 +14,9 @@ set -e
 
 cd "$(dirname "$0")/../.."      # 切到 AuK 项目根，保证相对路径一致
 
-# OpenSLR 94（MLS）法语 flac 版。文件名/大小请以 https://www.openslr.org/94/ 页面为准，
-# 若页面提供 opus 版（体积小很多）但脚本需 flac，可自行替换 URL 并在 preprocess_mls.py 里
-# 兼容 opus 解码。默认走 flac（约数十 GB，wget -c 支持断点续传）。
-MLS_URL="${MLS_URL:-https://www.openslr.org/resources/94/mls_french.tar.gz}"
+# MLS 法语数据不在 OpenSLR 上（体积太大），实际托管在 Meta 的 dl.fbaipublicfiles.com（AWS S3）。
+# 两个版本：flac 61G / opus 16G。默认走 opus 省空间；如需 flac，设 MLS_URL 覆盖。
+MLS_URL="${MLS_URL:-https://dl.fbaipublicfiles.com/mls/mls_french_opus.tar.gz}"
 TARBALL=data/french_prep/mls_french.tar.gz
 
 mkdir -p data/french_prep
